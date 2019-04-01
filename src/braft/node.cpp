@@ -418,13 +418,19 @@ int NodeImpl::init(const NodeOptions& options) {
         return -1;
     }
 
+    // 选举定时器
     CHECK_EQ(0, _vote_timer.init(this, options.election_timeout_ms));
+    // 选举超时定时器
     CHECK_EQ(0, _election_timer.init(this, options.election_timeout_ms));
+    // leader降级定时器，时间为election timeout，防止leader被网络分区后导致
+    // 原有client一直在hang在这个leader上，及时降级可以让client及时处理错误
     CHECK_EQ(0, _stepdown_timer.init(this, options.election_timeout_ms));
+    // 定时快照
     CHECK_EQ(0, _snapshot_timer.init(this, options.snapshot_interval_s * 1000));
 
     _config_manager = new ConfigurationManager();
 
+    // 启动apply 协程
     if (bthread::execution_queue_start(&_apply_queue_id, NULL,
                                        execute_applying_tasks, this) != 0) {
         LOG(ERROR) << "Fail to start execution_queue";
@@ -454,12 +460,15 @@ int NodeImpl::init(const NodeOptions& options) {
         return -1;
     }
 
+    // fsm caller启动时设置last applied index / term 为0
     if (init_fsm_caller(LogId(0, 0)) != 0) {
         LOG(ERROR) << "node " << _group_id << ":" << _server_id
             << " init_fsm_caller failed";
         return -1;
     }
 
+    // ballot是一个投票箱，统计当前node上已经大多数返回的entry，并暂存其entry的closure
+    // 这个closure是用户rpc的closure，在raft逻辑走完之后可以提供给业务逻辑向用户返回结果
     // commitment manager init
     _ballot_box = new BallotBox();
     BallotBoxOptions ballot_box_options;
@@ -509,9 +518,11 @@ int NodeImpl::init(const NodeOptions& options) {
     rg_options.snapshot_storage = _snapshot_executor
         ? _snapshot_executor->snapshot_storage()
         : NULL;
+
+    // 根据配置信息创建replicator实例，这个实例负责replicate log entry
     _replicator_group.init(NodeId(_group_id, _server_id), rg_options);
 
-    // set state to follower
+    // 初始状态设置为follower
     _state = STATE_FOLLOWER;
 
     LOG(INFO) << "node " << _group_id << ":" << _server_id << " init,"
@@ -531,7 +542,8 @@ int NodeImpl::init(const NodeOptions& options) {
         step_down(_current_term, false, butil::Status::OK());
     }
 
-    // add node to NodeManager
+    // 将自己添加到nodemanager，因为multi raft是由nodemanager来控制raft node的service
+    // raft nodemanager raft service负责分发请求给raft node，raft node以group来唯一标识
     if (!NodeManager::GetInstance()->add(this)) {
         LOG(ERROR) << "NodeManager add " << _group_id 
                    << ":" << _server_id << " failed";

@@ -155,6 +155,7 @@ int FSMCaller::init(const FSMCallerOptions &options) {
     execq_opt.bthread_attr = options.usercode_in_pthread 
                              ? BTHREAD_ATTR_PTHREAD
                              : BTHREAD_ATTR_NORMAL;
+    // 启动状态机
     bthread::execution_queue_start(&_queue_id,
                                    &execq_opt,
                                    FSMCaller::run,
