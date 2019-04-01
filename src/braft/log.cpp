@@ -908,6 +908,9 @@ int SegmentLogStorage::list_segments(bool is_empty) {
             continue;
         }
 
+        // raft log文件名中保存当前log的首个entry index和last entry index
+        // raft_log_[first_index]_[last_index]。
+        // TODO:什么样的情况下需要将raft log打包成一个log_[first_index]_[last_index]？
         int match = 0;
         int64_t first_index = 0;
         int64_t last_index = 0;
@@ -922,6 +925,9 @@ int SegmentLogStorage::list_segments(bool is_empty) {
             continue;
         }
 
+        // 如果当前log文件只有[first_index]没有[last_index]，说明当前log是正在被写入
+        // 的log，那么这个log需要被回放.
+        // TODO: 如何回放？
         match = sscanf(dir_reader.name(), BRAFT_SEGMENT_OPEN_PATTERN, 
                        &first_index);
         if (match == 1) {
@@ -938,6 +944,7 @@ int SegmentLogStorage::list_segments(bool is_empty) {
         }
     }
 
+    // 将所有log segment信息汇总，然后检查是否log信息是否连续，如果不连续说明log存在问题
     // check segment
     int64_t last_log_index = -1;
     SegmentMap::iterator it;
