@@ -183,6 +183,8 @@ int Segment::_load_entry(off_t offset, EntryHeader* head, butil::IOBuf* data,
     tmp.checksum_type = (meta_field << 8) >> 24;
     tmp.data_len = data_len;
     tmp.data_checksum = data_checksum;
+    // 因为每个log entry在append的时候都有固定的格式，在头部近路当前entry的元信息
+    // 头部还有checksum校验数据，这个checksum就是为了检验当前entry是否是完整的依据
     if (!verify_checksum(tmp.checksum_type, 
                         p, ENTRY_HEADER_SIZE - 4, header_checksum)) {
         LOG(ERROR) << "Found corrupted header at offset=" << offset
@@ -289,6 +291,8 @@ int Segment::load(ConfigurationManager* configuration_manager) {
             // truncated
             break;
         }
+
+        // 对configuration的entry会将其解析并打包到configuration manager中
         if (header.type == ENTRY_TYPE_CONFIGURATION) {
             butil::IOBuf data;
             // Header will be parsed again but it's fine as configuration
@@ -310,11 +314,16 @@ int Segment::load(ConfigurationManager* configuration_manager) {
         }
         _offset_and_term.push_back(std::make_pair(entry_off, header.term));
         if (_is_open) {
+            // 更新WAL的last log index
             ++_last_index;
         }
         entry_off += skip_len;
     }
 
+    // 将最后一个不完整的log entry截断，防止造成数据不一致
+    // 因为在append wal时很可能存在append到了一半机器挂掉了，因为append不是
+    // 原子操作，所以wal中就有可能出现最后一个entry是不完整的状况，那么在重放
+    // WAL时就要将这个entry丢掉
     // truncate last uncompleted entry
     if (ret == 0 && entry_off != file_size) {
         LOG(INFO) << "truncate last uncompleted write entry, path: " << _path
