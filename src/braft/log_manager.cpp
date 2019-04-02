@@ -76,6 +76,8 @@ int LogManager::init(const LogManagerOptions &options) {
     if (ret != 0) {
         return ret;
     }
+    // log storage会将当前raft node的wal load进来，并且遍历得到当前log的
+    // first log index和last log index，及对应的term
     _first_log_index = _log_storage->first_log_index();
     _last_log_index = _log_storage->last_log_index();
     _disk_id.index = _last_log_index;

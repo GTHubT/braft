@@ -233,6 +233,8 @@ int NodeImpl::init_log_storage() {
     return _log_manager->init(log_manager_options);
 }
 
+// raft meta主要包括term信息和votefor
+// 这两个值主要为了防止在选举期间造成集群出现双主，影响集群正确性
 int NodeImpl::init_meta_storage() {
     int ret = 0;
 
@@ -446,6 +448,7 @@ int NodeImpl::init(const NodeOptions& options) {
     // Create _fsm_caller first as log_manager needs it to report error
     _fsm_caller = new FSMCaller();
 
+    // 初始化log，log中初始化会将当前node的wal遍历，并获取last log index和first log index
     // log storage and log manager init
     if (init_log_storage() != 0) {
         LOG(ERROR) << "node " << _group_id << ":" << _server_id
@@ -453,7 +456,7 @@ int NodeImpl::init(const NodeOptions& options) {
         return -1;
     }
 
-    // meta init
+    // 获取raft meta（term + votefor）
     if (init_meta_storage() != 0) {
         LOG(ERROR) << "node " << _group_id << ":" << _server_id
             << " init_meta_storage failed";
@@ -497,6 +500,10 @@ int NodeImpl::init(const NodeOptions& options) {
         return -1;
     }
 
+    // 在初始化log manager的时候会回放wal，在wal中会保存某个configure的log entry
+    // 那么这个entry就会被push到configuration模块的队列中，check_and_set_configuration
+    // 会从这个队列的尾部取出entry，这个entry就是当前界定啊上一次最新的configure，然后node会用
+    // 这个configure初始化集群（不直接用新的conf?）
     _conf.id = LogId();
     // if have log using conf in log, else using conf in options
     if (_log_manager->last_log_index() > 0) {
