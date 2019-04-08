@@ -1672,10 +1672,20 @@ LeaderStableClosure::LeaderStableClosure(const NodeId& node_id,
 {
 }
 
+// raft node在重启时会先将没有close的WAL load起来，会从这个没有close的WAL中获取其
+// first log index，这个信息会记录在WAL日志的文件名中，并会从这个open的WAL中扫描得到
+// last log index。因为raft并没有持久化last applied index这个信息，所以无法确定当前这个
+// fisrt log index对应的log entry是否已经持久化到状态机，所以在commit at的时候还是以
+// first log index作为初始appl的第一个index，那么可能就会导致如果原来的first log index
+// 已经apply过了，这里又会被再次apply，所以如果业务逻辑不是幂等性的操作，这里的apply会造成
+// 数据违背线性一致性。
+// 为什么last applied index这个值不能持久化，如果持久化了，那么是不是就能解决重启后重放
+// WAL log不会将已经apply的log entry再持久化一遍
 void LeaderStableClosure::Run() {
     if (status().ok()) {
         if (_ballot_box) {
             // ballot_box check quorum ok, will call fsm_caller
+            // raft重启的时候first log index
             _ballot_box->commit_at(
                     _first_log_index, _first_log_index + _nentries - 1, _node_id.peer_id);
         }
