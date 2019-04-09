@@ -1642,6 +1642,8 @@ void NodeImpl::become_leader() {
     }
 
     // init commit manager
+    // 这个地方说明，raft不会主动提交非自己任期内的log entry，但是可以间接实现提交非自己
+    // 任期的log entry。
     _ballot_box->reset_pending_index(_log_manager->last_log_index() + 1);
 
     // Register _conf_ctx to reject configuration changing before the first log

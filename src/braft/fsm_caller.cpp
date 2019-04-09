@@ -524,6 +524,9 @@ void IteratorImpl::next() {
         _cur_entry->Release();
         _cur_entry = NULL;
     }
+    // 在raft重启后，当前raft node被选举为leader后，开始第一次apply的时候会将之前的log entry
+    // 再次apply一遍，last_applied_index初始化为0，commit index初始化为open segment的
+    // last_log_index + 1.
     if (_cur_index <= _committed_index) {
         ++_cur_index;
         if (_cur_index <= _committed_index) {
