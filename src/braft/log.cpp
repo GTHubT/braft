@@ -624,6 +624,17 @@ int Segment::truncate(const int64_t last_index_kept) {
     return ret;
 }
 
+// 初始化wal存储机制
+// log storage需要能够处理机器重启的场景，那么就需要记录一些状态使得在重启后能
+// 恢复重启前的状态。
+// 需要记录哪些状态？
+// LogStorage use segmented append-only file, all data in disk, all index in memory.
+// append one log entry, only cause one disk write, every disk write will call fsync().
+//
+// SegmentLog layout:
+//      log_meta: record start_log
+//      log_000001-0001000: closed segment
+//      log_inprogress_0001001: open segment
 int SegmentLogStorage::init(ConfigurationManager* configuration_manager) {
     butil::FilePath dir_path(_path);
     butil::File::Error e;
@@ -1070,6 +1081,11 @@ int SegmentLogStorage::save_meta(const int64_t log_index) {
         << " time: " << timer.u_elapsed();
     return ret;
 }
+
+// 
+// message LogPBMeta {
+//     required int64 first_log_index = 1;
+// };
 
 int SegmentLogStorage::load_meta() {
     butil::Timer timer;

@@ -216,6 +216,7 @@ int NodeImpl::init_snapshot_storage() {
     return _snapshot_executor->init(opt);
 }
 
+// 创建wal存储管理对象
 int NodeImpl::init_log_storage() {
     CHECK(_fsm_caller);
     _log_storage = LogStorage::create(_options.log_uri);
@@ -765,6 +766,7 @@ void NodeImpl::unsafe_register_conf_change(const Configuration& old_conf,
     }
 
     // check concurrent conf change
+    // 禁止并发进行配置变更
     if (_conf_ctx.is_busy()) {
         LOG(WARNING) << "[" << node_id()
                      << " ] Refusing concurrent configuration changing";

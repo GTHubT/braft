@@ -70,6 +70,10 @@ int LogManager::init(const LogManagerOptions &options) {
         PLOG(ERROR) << "Fail to init _wait_map";
         return ENOMEM;
     }
+
+    // 初始化wal存储对象
+    // _log_storage是SegmentLogStorage类型的变量
+    // 每个segment是一个append only的文件（append only对于性能影响很大）
     _log_storage = options.log_storage;
     _config_manager = options.configuration_manager;
     int ret = _log_storage->init(_config_manager);
