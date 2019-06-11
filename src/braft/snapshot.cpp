@@ -373,6 +373,11 @@ private:
     scoped_refptr<SnapshotThrottle> _snapshot_throttle;
 };
 
+// 生成一个uri这样对端通过这个uri拷贝文件
+// 为什么不直接把文件在install snapshot拷贝过去？
+// 猜想应该是为了解耦快照复制逻辑，使其单独可控
+// uri: remote://127.0.0.1:8000/1234
+// endpoint/readid
 std::string LocalSnapshotReader::generate_uri_for_copy() {
     if (_addr == butil::EndPoint()) {
         LOG(ERROR) << "Address is not specified";
