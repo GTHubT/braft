@@ -1448,6 +1448,7 @@ void NodeImpl::elect_self(std::unique_lock<raft_mutex_t>* lck) {
     int64_t old_term = _current_term;
     // get last_log_id outof node mutex
     lck->unlock();
+    // 获取最后的log id信息
     const LogId last_log_id = _log_manager->last_log_id(true);
     lck->lock();
     // vote need defense ABA after unlock&lock

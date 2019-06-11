@@ -169,6 +169,7 @@ int64_t LogManager::last_log_index(bool is_flush) {
         if (_last_log_index == _last_snapshot_id.index) {
             return _last_log_index;
         }
+        // 获取last log id之前需要先flush一遍
         LastLogIdClosure c;
         CHECK_EQ(0, bthread::execution_queue_execute(_disk_queue, &c));
         lck.unlock();

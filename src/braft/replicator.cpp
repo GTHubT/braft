@@ -479,6 +479,9 @@ int Replicator::_fill_common_fields(AppendEntriesRequest* request,
                                     bool is_heartbeat) {
     const int64_t prev_log_term = _options.log_manager->get_term(prev_log_index);
     if (prev_log_term == 0 && prev_log_index != 0) {
+        // prev_log_term与prev_log_index不匹配，如果是心跳则不关注，如果非心跳
+        // 那么这种就是term与index不一致了，说明该log已经打过快照了，对应的term信息已经
+        // 被截断了，那么需要向对端发送install snapshot请求了。
         if (!is_heartbeat) {
             CHECK_LT(prev_log_index, _options.log_manager->first_log_index());
             BRAFT_VLOG << "log_index=" << prev_log_index << " was compacted";
@@ -510,6 +513,7 @@ void Replicator::_send_empty_entries(bool is_heartbeat) {
                 request.get(), _next_index - 1, is_heartbeat) != 0) {
         CHECK(!is_heartbeat);
         // _id is unlock in _install_snapshot
+        // _fill_common_fields失败时install snapshot的触发点
         return _install_snapshot();
     }
     if (is_heartbeat) {
@@ -682,6 +686,12 @@ void Replicator::_wait_more_entries() {
     CHECK_EQ(0, bthread_id_unlock(_id)) << "Fail to unlock " << _id;
 }
 
+/**
+ * install snapshot的触发点：
+ * 因为leader会定期进行snapshot，在snapshot结束之后其wal就被截断了
+ * 如果在发送appendentries的时候发现待发送的nextidnex对应的log已经不在
+ * wal里了，这就表明当前log已经被打快照了，那么就要触发向该peer节点发送install snapshot请求
+ */
 void Replicator::_install_snapshot() {
     CHECK(!_reader);
 

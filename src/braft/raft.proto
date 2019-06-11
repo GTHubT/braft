@@ -20,7 +20,10 @@ message RequestVoteRequest {
     required string group_id = 1;
     required string server_id = 2;
     required string peer_id = 3;
+    // 当前term信息
+    // term是逻辑时钟，用于避免旧leader干扰新的集群
     required int64 term = 4;
+    // last_log_term与last_log_index并不是commited的
     required int64 last_log_term = 5;
     required int64 last_log_index = 6;
 };

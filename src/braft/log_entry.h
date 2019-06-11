@@ -62,6 +62,7 @@ inline bool operator!=(const LogId& lhs, const LogId& rhs) {
     return !(lhs == rhs);
 }
 
+// 先判断term，然后再判断log index。
 inline bool operator<(const LogId& lhs, const LogId& rhs) {
     if (lhs.term == rhs.term) {
         return lhs.index < rhs.index;
