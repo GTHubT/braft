@@ -461,6 +461,7 @@ int LocalSnapshotStorage::init() {
     // TODO: add snapshot watcher
 
     // get last_snapshot_index
+    // 重启之后删除就快照
     if (snapshots.size() > 0) {
         size_t snapshot_count = snapshots.size();
         for (size_t i = 0; i < snapshot_count - 1; i++) {

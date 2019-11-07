@@ -47,6 +47,8 @@ static void add_peer_returned(brpc::Controller* cntl,
     }
 }
 
+
+// 配置变更：新增节点
 void CliServiceImpl::add_peer(::google::protobuf::RpcController* controller,
                               const ::braft::AddPeerRequest* request,
                               ::braft::AddPeerResponse* response,

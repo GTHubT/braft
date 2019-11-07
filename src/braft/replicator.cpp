@@ -501,6 +501,9 @@ int Replicator::_fill_common_fields(AppendEntriesRequest* request,
     request->set_peer_id(_options.peer_id.to_string());
     request->set_prev_log_index(prev_log_index);
     request->set_prev_log_term(prev_log_term);
+
+    // 这里将leader自己的commited index放到append entry中，复制给follower
+    // follower会根据这个commit index将自己的wal commit，然后apply
     request->set_committed_index(_options.ballot_box->last_committed_index());
     return 0;
 }
